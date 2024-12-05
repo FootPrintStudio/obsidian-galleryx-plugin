@@ -42,4 +42,4 @@ For inline single images or videos:
 
 ## License
 
-[MIT License](LICENSE)
+[MIT License](LICENSE.txt)
