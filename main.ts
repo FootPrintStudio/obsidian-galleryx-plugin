@@ -99,13 +99,54 @@ export default class GalleryXPlugin extends Plugin {
         });
     }
 
+    createFilterElement(items: GalleryItem[], galleryEl: HTMLElement): HTMLElement {
+        const filterContainer = document.createElement('div');
+        filterContainer.className = 'galleryx-filter-container';
+    
+        const filterInput = document.createElement('input');
+        filterInput.type = 'text';
+        filterInput.placeholder = 'Filter by tags...';
+        filterInput.className = 'galleryx-filter-input';
+    
+        const filterButton = document.createElement('button');
+        filterButton.textContent = 'Filter';
+        filterButton.className = 'galleryx-filter-button';
+    
+        const clearButton = document.createElement('button');
+        clearButton.textContent = 'Clear';
+        clearButton.className = 'galleryx-clear-button';
+    
+        filterContainer.appendChild(filterInput);
+        filterContainer.appendChild(filterButton);
+        filterContainer.appendChild(clearButton);
+    
+        const applyFilter = () => this.filterGallery(items, galleryEl, filterInput.value);
+    
+        filterButton.addEventListener('click', applyFilter);
+        clearButton.addEventListener('click', () => {
+            filterInput.value = '';
+            this.filterGallery(items, galleryEl, '');
+        });
+    
+        // Add event listener for Enter key press
+        filterInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                applyFilter();
+            }
+        });
+    
+        return filterContainer;
+    }
+
     parseGalleryItems(lines: string[]): GalleryItem[] {
         return lines.map(line => {
             const [src, tagsString] = line.split('{');
             const trimmedSrc = src.trim();
             const isLocal = trimmedSrc.startsWith('![[') && trimmedSrc.endsWith(']]');
             const isVideo = trimmedSrc.match(/\.(mp4|webm|ogg)$/i) !== null;
-            const tags = tagsString ? tagsString.replace('}', '').split(',').map(tag => tag.trim()) : [];
+            const tags = tagsString 
+                ? tagsString.replace('}', '').split(',').map(tag => tag.trim().toLowerCase())
+                : [];
             return { src: trimmedSrc, isLocal, isVideo, tags };
         }).filter(item => item.src);
     }
@@ -114,6 +155,9 @@ export default class GalleryXPlugin extends Plugin {
         if (settings.type === 'single' && items.length === 1) {
             return this.createSingleGalleryItem(items[0]);
         }
+    
+        const containerEl = document.createElement('div');
+        containerEl.className = 'galleryx-outer-container';
     
         const galleryEl = document.createElement('div');
         galleryEl.className = `galleryx-container galleryx-${settings.type}`;
@@ -129,7 +173,25 @@ export default class GalleryXPlugin extends Plugin {
             galleryEl.appendChild(itemEl);
         });
     
-        return galleryEl;
+        const filterEl = this.createFilterElement(items, galleryEl);
+        containerEl.appendChild(filterEl);
+        containerEl.appendChild(galleryEl);
+    
+        return containerEl;
+    }
+    
+    filterGallery(items: GalleryItem[], galleryEl: HTMLElement, filterTags: string) {
+        const tags = filterTags.toLowerCase().split(',').map(tag => tag.trim());
+        
+        const galleryItems = galleryEl.querySelectorAll('.galleryx-item');
+        galleryItems.forEach((itemEl, index) => {
+            const item = items[index];
+            if (tags.length === 0 || tags.every(tag => item.tags.some(itemTag => itemTag.toLowerCase().includes(tag)))) {
+                (itemEl as HTMLElement).style.display = '';
+            } else {
+                (itemEl as HTMLElement).style.display = 'none';
+            }
+        });
     }
     
     createGalleryItemElement(item: GalleryItem): HTMLElement {

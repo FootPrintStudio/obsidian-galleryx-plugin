@@ -42,3 +42,32 @@
     height: auto;
     display: block;
 }
+
+/* Filter bar */
+
+.galleryx-filter-container {
+    margin-bottom: 10px;
+    display: flex;
+    gap: 5px;
+}
+
+.galleryx-filter-input {
+    flex-grow: 1;
+    padding: 5px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+}
+
+.galleryx-filter-button,
+.galleryx-clear-button {
+    padding: 5px 10px;
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.galleryx-clear-button {
+    background-color: var(--background-modifier-error);
+}
