@@ -7,6 +7,12 @@ interface GalleryItem {
     tags: string[];
 }
 
+interface GallerySettings {
+    type: string;
+    flexboxHeight?: string;
+    columns?: number;
+}
+
 export default class GalleryXPlugin extends Plugin {
     async onload() {
         console.log('Loading GalleryX plugin');
@@ -21,11 +27,50 @@ export default class GalleryXPlugin extends Plugin {
 
     processGalleryBlock(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
         const lines = source.split('\n');
-        const settings = this.parseSettings(lines[0]);
-        const items = this.parseGalleryItems(lines.slice(1));
-
+        const { settings, contentStartIndex } = this.extractSettings(lines);
+        const items = this.parseGalleryItems(lines.slice(contentStartIndex));
+    
         const galleryEl = this.createGalleryElement(items, settings);
         el.appendChild(galleryEl);
+    }
+    
+    extractSettings(lines: string[]): { settings: GallerySettings, contentStartIndex: number } {
+        let settings: GallerySettings = { type: 'flexbox' };
+        let contentStartIndex = 0;
+    
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('settings:') || line.startsWith('flexboxheight:') || line.startsWith('columns:')) {
+                const parsedSettings = this.parseSettings(line);
+                settings = { ...settings, ...parsedSettings };
+                contentStartIndex = i + 1;
+            } else {
+                break;
+            }
+        }
+    
+        return { settings, contentStartIndex };
+    }
+    
+    parseSettings(settingsLine: string): Partial<GallerySettings> {
+        const settings: Partial<GallerySettings> = {};
+        
+        const typeMatch = settingsLine.match(/settings:\s*(\w+)/);
+        if (typeMatch) {
+            settings.type = typeMatch[1];
+        }
+    
+        const flexboxHeightMatch = settingsLine.match(/flexboxheight:\s*(\d+px)/);
+        if (flexboxHeightMatch) {
+            settings.flexboxHeight = flexboxHeightMatch[1];
+        }
+    
+        const columnsMatch = settingsLine.match(/columns:\s*(\d+)/);
+        if (columnsMatch) {
+            settings.columns = parseInt(columnsMatch[1]);
+        }
+    
+        return settings;
     }
 
     processInlineGallery(el: HTMLElement, ctx: MarkdownPostProcessorContext) {
@@ -54,15 +99,6 @@ export default class GalleryXPlugin extends Plugin {
         });
     }
 
-    parseSettings(settingsLine: string): { type: string } {
-        const settings = { type: 'flexbox' };
-        const match = settingsLine.match(/settings:\s*(\w+)/);
-        if (match) {
-            settings.type = match[1];
-        }
-        return settings;
-    }
-
     parseGalleryItems(lines: string[]): GalleryItem[] {
         return lines.map(line => {
             const [src, tagsString] = line.split('{');
@@ -74,13 +110,19 @@ export default class GalleryXPlugin extends Plugin {
         }).filter(item => item.src);
     }
 
-    createGalleryElement(items: GalleryItem[], settings: { type: string }): HTMLElement {
+    createGalleryElement(items: GalleryItem[], settings: GallerySettings): HTMLElement {
         if (settings.type === 'single' && items.length === 1) {
             return this.createSingleGalleryItem(items[0]);
         }
     
         const galleryEl = document.createElement('div');
         galleryEl.className = `galleryx-container galleryx-${settings.type}`;
+    
+        if (settings.type === 'flexbox' && settings.flexboxHeight) {
+            galleryEl.style.setProperty('--flexbox-height', settings.flexboxHeight);
+        } else if ((settings.type === 'grid' || settings.type === 'video-grid') && settings.columns) {
+            galleryEl.style.setProperty('--columns', settings.columns.toString());
+        }
     
         items.forEach(item => {
             const itemEl = this.createGalleryItemElement(item);
@@ -89,25 +131,23 @@ export default class GalleryXPlugin extends Plugin {
     
         return galleryEl;
     }
-
+    
     createGalleryItemElement(item: GalleryItem): HTMLElement {
         const itemEl = document.createElement('div');
         itemEl.className = 'galleryx-item';
-
+    
+        const contentEl = item.isVideo ? document.createElement('video') : document.createElement('img');
+        contentEl.src = item.isLocal ? this.getLocalFilePath(item.src) : item.src;
+        
         if (item.isVideo) {
-            const videoEl = document.createElement('video');
-            videoEl.src = item.isLocal ? this.getLocalFilePath(item.src) : item.src;
-            videoEl.controls = true;
-            itemEl.appendChild(videoEl);
+            (contentEl as HTMLVideoElement).controls = true;
         } else {
-            const imgEl = document.createElement('img');
-            imgEl.src = item.isLocal ? this.getLocalFilePath(item.src) : item.src;
-            imgEl.alt = item.src;
-            itemEl.appendChild(imgEl);
+            (contentEl as HTMLImageElement).alt = item.src;
         }
-
+    
+        itemEl.appendChild(contentEl);
         itemEl.addEventListener('click', () => this.openFullscreen(item));
-
+    
         return itemEl;
     }
 
@@ -133,7 +173,6 @@ export default class GalleryXPlugin extends Plugin {
     }
 
     getLocalFilePath(src: string): string {
-        // Remove the ![[]] syntax and get the actual file name
         const fileName = src.replace(/!\[\[(.*?)\]\]/, '$1');
         const file = this.app.vault.getAbstractFileByPath(fileName);
         if (file instanceof TFile) {
