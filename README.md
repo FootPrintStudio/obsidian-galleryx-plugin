@@ -22,14 +22,12 @@ GalleryX is a gallery plugin for Obsidian that creates elegant gallery layouts w
 Use the `galleryx` code block to create galleries:
 
 ````
-````
 ```galleryx
 settings: flexbox
 https://example.com/image1.jpg {tag1, tag2}
 https://example.com/image2.jpg {tag3}
 ![[local_image.png]] {tag4}
 ```
-````
 ````
 
 For inline single images or videos:
