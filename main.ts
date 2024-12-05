@@ -120,7 +120,7 @@ export default class GalleryXPlugin extends Plugin {
     
         if (settings.type === 'flexbox' && settings.flexboxHeight) {
             galleryEl.style.setProperty('--flexbox-height', settings.flexboxHeight);
-        } else if ((settings.type === 'grid' || settings.type === 'video-grid') && settings.columns) {
+        } else if (settings.type === 'grid' && settings.columns) {
             galleryEl.style.setProperty('--columns', settings.columns.toString());
         }
     
@@ -137,7 +137,12 @@ export default class GalleryXPlugin extends Plugin {
         itemEl.className = 'galleryx-item';
     
         const contentEl = item.isVideo ? document.createElement('video') : document.createElement('img');
-        contentEl.src = item.isLocal ? this.getLocalFilePath(item.src) : item.src;
+        
+        // Set data-src instead of src for lazy loading
+        contentEl.setAttribute('data-src', item.isLocal ? this.getLocalFilePath(item.src) : item.src);
+        
+        // Add loading="lazy" attribute for native lazy loading
+        contentEl.setAttribute('loading', 'lazy');
         
         if (item.isVideo) {
             (contentEl as HTMLVideoElement).controls = true;
@@ -145,29 +150,56 @@ export default class GalleryXPlugin extends Plugin {
             (contentEl as HTMLImageElement).alt = item.src;
         }
     
+        // Add a placeholder or low-quality image
+        contentEl.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
+    
         itemEl.appendChild(contentEl);
         itemEl.addEventListener('click', () => this.openFullscreen(item));
     
+        // Use Intersection Observer for lazy loading
+        this.observeElement(itemEl);
+    
         return itemEl;
+    }
+    
+    private observeElement(element: HTMLElement) {
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const target = entry.target as HTMLImageElement | HTMLVideoElement;
+                    const dataSrc = target.getAttribute('data-src');
+                    if (dataSrc) {
+                        target.src = dataSrc;
+                        target.removeAttribute('data-src');
+                    }
+                    observer.unobserve(target);
+                }
+            });
+        }, { rootMargin: '100px' });
+    
+        observer.observe(element.firstElementChild as HTMLElement);
     }
 
     createSingleGalleryItem(item: GalleryItem): HTMLElement {
         const wrapper = document.createElement('div');
         wrapper.className = 'galleryx-single-item';
     
+        const contentEl = item.isVideo ? document.createElement('video') : document.createElement('img');
+        contentEl.setAttribute('data-src', item.isLocal ? this.getLocalFilePath(item.src) : item.src);
+        contentEl.setAttribute('loading', 'lazy');
+    
         if (item.isVideo) {
-            const videoEl = document.createElement('video');
-            videoEl.src = item.isLocal ? this.getLocalFilePath(item.src) : item.src;
-            videoEl.controls = true;
-            wrapper.appendChild(videoEl);
+            (contentEl as HTMLVideoElement).controls = true;
         } else {
-            const imgEl = document.createElement('img');
-            imgEl.src = item.isLocal ? this.getLocalFilePath(item.src) : item.src;
-            imgEl.alt = item.src;
-            wrapper.appendChild(imgEl);
+            (contentEl as HTMLImageElement).alt = item.src;
         }
     
+        contentEl.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
+    
+        wrapper.appendChild(contentEl);
         wrapper.addEventListener('click', () => this.openFullscreen(item));
+    
+        this.observeElement(wrapper);
     
         return wrapper;
     }

@@ -9,8 +9,7 @@
     align-items: flex-start;
 }
 
-.galleryx-grid,
-.galleryx-video-grid {
+.galleryx-grid {
     display: grid;
     gap: 5px;
     grid-template-columns: repeat(var(--columns, 3), 1fr);
@@ -24,11 +23,6 @@
 .galleryx-flexbox .galleryx-item {
     margin-bottom: 5px;
     height: var(--flexbox-height, auto);
-}
-
-.galleryx-grid .galleryx-item,
-.galleryx-video-grid .galleryx-item {
-    aspect-ratio: 1 / 1;
 }
 
 .galleryx-item img,
