@@ -1,0 +1,23 @@
+/* Basics */
+
+.galleryx-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.galleryx-item, .galleryx-single-item {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.galleryx-item img, .galleryx-single-item img,
+.galleryx-item video, .galleryx-single-item video {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+.galleryx-single-wrapper {
+    margin: 10px 0;
+}

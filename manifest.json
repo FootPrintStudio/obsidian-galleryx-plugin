@@ -1,0 +1,10 @@
+{
+  "id": "galleryx-plugin",
+  "name": "GalleryX",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "A gallery plugin for Obsidian that creates elegant gallery layouts with fullscreen viewing functionality.",
+  "author": "FootPrintStudio",
+  "authorUrl": "https://github.com/FootPrintStudio",
+  "isDesktopOnly": false
+}
