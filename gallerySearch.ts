@@ -16,14 +16,16 @@ export class GallerySearch {
         const lines = source.split('\n');
         const { tags, limit } = this.parseSearchSettings(lines);
         const items = await this.findMatchingItems(tags);
-        
+
         const containerEl = document.createElement('div');
         containerEl.className = 'galleryx-search-container';
 
-        const searchInputEl = this.createSearchInput(items, containerEl);
+        const searchInputEl = this.createSearchInput(items, containerEl, limit);
         containerEl.appendChild(searchInputEl);
 
-        const galleryEl = this.createPaginatedGallery(items, limit);
+        // Create an empty gallery container
+        const galleryEl = document.createElement('div');
+        galleryEl.className = 'galleryx-search-gallery';
         containerEl.appendChild(galleryEl);
 
         el.appendChild(containerEl);
@@ -76,12 +78,12 @@ export class GallerySearch {
     }
 
     private itemMatchesTags(item: GalleryItem, searchTags: string[]): boolean {
-        return searchTags.every(tag => 
+        return searchTags.every(tag =>
             item.tags.some(itemTag => itemTag.toLowerCase().includes(tag.toLowerCase()))
         );
     }
 
-    private createSearchInput(items: GalleryItem[], containerEl: HTMLElement): HTMLElement {
+    private createSearchInput(items: GalleryItem[], containerEl: HTMLElement, limit: number): HTMLElement {
         const searchContainer = document.createElement('div');
         searchContainer.className = 'galleryx-search-input-container';
 
@@ -94,17 +96,33 @@ export class GallerySearch {
         suggestionContainer.className = 'galleryx-suggestion-container';
         suggestionContainer.style.display = 'none';
 
+        const searchButton = document.createElement('button');
+        searchButton.textContent = 'Search';
+        searchButton.className = 'galleryx-search-button';
+
+        const clearButton = document.createElement('button');
+        clearButton.textContent = 'Clear';
+        clearButton.className = 'galleryx-clear-button';
+
         searchContainer.appendChild(searchInput);
         searchContainer.appendChild(suggestionContainer);
+        searchContainer.appendChild(searchButton);
+        searchContainer.appendChild(clearButton);
+
+        const performSearch = () => {
+            if (searchInput.value.trim() !== '') {
+                this.updateGalleryWithSearch(searchInput.value, items, containerEl, limit);
+                suggestionContainer.style.display = 'none';
+            }
+        };
 
         searchInput.addEventListener('input', () => {
             this.updateSuggestions(searchInput.value, suggestionContainer);
         });
 
-        searchInput.addEventListener('keyup', (event) => {
-            if (event.key === 'Enter') {
-                this.updateGalleryWithSearch(searchInput.value, items, containerEl);
-                suggestionContainer.style.display = 'none';
+        searchInput.addEventListener('focus', () => {
+            if (searchInput.value.trim() !== '') {
+                this.updateSuggestions(searchInput.value, suggestionContainer);
             }
         });
 
@@ -112,6 +130,20 @@ export class GallerySearch {
             setTimeout(() => {
                 suggestionContainer.style.display = 'none';
             }, 200);
+        });
+
+        searchInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        searchButton.addEventListener('click', performSearch);
+
+        clearButton.addEventListener('click', () => {
+            searchInput.value = '';
+            suggestionContainer.style.display = 'none';
+            this.clearGallery(containerEl);
         });
 
         return searchContainer;
@@ -128,7 +160,7 @@ export class GallerySearch {
             return;
         }
 
-        const matchingTags = allTags.filter(tag => 
+        const matchingTags = allTags.filter(tag =>
             tag.toLowerCase().includes(currentTag) && !inputTags.slice(0, -1).includes(tag.toLowerCase())
         );
 
@@ -152,17 +184,27 @@ export class GallerySearch {
         }
     }
 
-    private updateGalleryWithSearch(searchInput: string, items: GalleryItem[], containerEl: HTMLElement) {
+    private updateGalleryWithSearch(searchInput: string, items: GalleryItem[], containerEl: HTMLElement, limit: number) {
         const searchTags = searchInput.toLowerCase().split(',').map(tag => tag.trim());
         const filteredItems = items.filter(item => this.itemMatchesTags(item, searchTags));
-        
-        const oldGallery = containerEl.querySelector('.galleryx-search-gallery');
-        if (oldGallery) {
-            oldGallery.remove();
-        }
 
-        const newGallery = this.createPaginatedGallery(filteredItems, 50); // Using default limit of 50
-        containerEl.appendChild(newGallery);
+        this.updateGalleryContent(filteredItems, containerEl, limit);
+    }
+
+    private clearGallery(containerEl: HTMLElement) {
+        const galleryEl = containerEl.querySelector('.galleryx-search-gallery');
+        if (galleryEl) {
+            galleryEl.innerHTML = '';
+        }
+    }
+
+    private updateGalleryContent(items: GalleryItem[], containerEl: HTMLElement, limit: number) {
+        const galleryEl = containerEl.querySelector('.galleryx-search-gallery');
+        if (galleryEl) {
+            galleryEl.innerHTML = '';
+            const newGallery = this.createPaginatedGallery(items, limit);
+            galleryEl.appendChild(newGallery);
+        }
     }
 
     private createPaginatedGallery(items: GalleryItem[], limit: number): HTMLElement {

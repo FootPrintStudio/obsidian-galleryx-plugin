@@ -175,3 +175,38 @@
 .galleryx-tag-suggestion.selected {
     background-color: rgba(255, 255, 255, 0.2);
 }
+
+/* Search Bar */
+
+.galleryx-search-input-container {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.galleryx-search-input {
+    flex-grow: 1;
+    margin-right: 5px;
+}
+
+.galleryx-search-button,
+.galleryx-clear-button {
+    margin-left: 5px;
+}
+
+.galleryx-suggestion-container {
+    position: absolute;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.galleryx-suggestion {
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.galleryx-suggestion:hover {
+    background-color: var(--background-secondary);
+}
