@@ -1,4 +1,5 @@
 import { GalleryItem } from './types';
+import { App, TFile } from 'obsidian';
 
 export class FullscreenView {
     private container: HTMLElement;
@@ -8,8 +9,11 @@ export class FullscreenView {
     private resolveLocalPath: (src: string) => string;
     private handleMouseMove: (e: MouseEvent) => void;
     private handleMouseUp: () => void;
+    private app: App;
+    private tagInput: HTMLInputElement | null = null;
 
-    constructor(items: GalleryItem[], startIndex: number, resolveLocalPath: (src: string) => string) {
+    constructor(app: App, items: GalleryItem[], startIndex: number, resolveLocalPath: (src: string) => string) {
+        this.app = app;
         this.items = items.filter(item => !item.isVideo);
         this.currentIndex = this.items.findIndex(item => item.src === items[startIndex].src);
         if (this.currentIndex === -1) this.currentIndex = 0;
@@ -31,7 +35,7 @@ export class FullscreenView {
 
         this.container.innerHTML = `
             <div class="galleryx-fullscreen-content" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;"></div>
-            <div class="galleryx-fullscreen-metadata" style="position: absolute; bottom: 10px; left: 10px; color: white;"></div>
+            <div class="galleryx-fullscreen-metadata" style="position: absolute; bottom: 10px; left: 10px; right: 10px; color: white; width: 100%;"></div>
             <button class="galleryx-fullscreen-close" style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: white; font-size: 24px; cursor: pointer;">×</button>
             ${this.items.length > 1 ? `
                 <button class="galleryx-fullscreen-prev" style="position: absolute; top: 50%; left: 10px; background: none; border: none; color: white; font-size: 24px; cursor: pointer;">‹</button>
@@ -89,13 +93,22 @@ export class FullscreenView {
             </div>
             <div style="flex: 1; overflow: hidden;">
                 <p style="margin: 0 0 5px 0;">Tags:</p>
-                <p style="margin: 0; word-wrap: break-word;">${this.currentItem.tags.join(', ')}</p>
+                <input type="text" class="galleryx-tags-input" value="${this.currentItem.tags.join(', ')}" style="width: 100%; background: rgba(255,255,255,0.1); color: white; border: none; padding: 5px;">
+                <button class="galleryx-update-tags" style="background: none; border: 1px solid white; color: white; padding: 5px 10px; cursor: pointer; margin-top: 5px;">Update Tags</button>
             </div>
         </div>
     `;
 
         const copyButton = metadataEl.querySelector('.galleryx-copy-metadata');
         copyButton?.addEventListener('click', () => this.copyMetadataToClipboard());
+
+        const updateTagsButton = metadataEl.querySelector('.galleryx-update-tags');
+        const tagsInput = metadataEl.querySelector('.galleryx-tags-input') as HTMLInputElement;
+        this.tagInput = tagsInput;  // Store the reference to the tag input
+        updateTagsButton?.addEventListener('click', () => {
+            const newTags = tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+            this.updateTags(newTags);
+        });
 
         // Add zoom functionality
         let scale = 1;
@@ -165,6 +178,42 @@ export class FullscreenView {
         });
     }
 
+    private async updateTags(newTags: string[]) {
+        this.currentItem.tags = newTags;
+
+        // Find the file containing the image
+        const files = this.app.vault.getMarkdownFiles();
+        for (const file of files) {
+            const content = await this.app.vault.read(file);
+            const lines = content.split('\n');
+            let updated = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes(this.currentItem.src)) {
+                    // Found the line with the image
+                    const tagRegex = /\{.*?\}/;
+                    if (tagRegex.test(lines[i])) {
+                        // Replace existing tags
+                        lines[i] = lines[i].replace(tagRegex, `{${newTags.join(', ')}}`);
+                    } else {
+                        // Add new tags
+                        lines[i] += ` {${newTags.join(', ')}}`;
+                    }
+                    updated = true;
+                    break;
+                }
+            }
+
+            if (updated) {
+                await this.app.vault.modify(file, lines.join('\n'));
+                break;
+            }
+        }
+
+        // Update the UI
+        this.updateContent();
+    }
+
     private navigate(direction: number) {
         if (this.items.length > 1) {
             this.currentIndex = (this.currentIndex + direction + this.items.length) % this.items.length;
@@ -174,6 +223,20 @@ export class FullscreenView {
     }
 
     private handleKeyDown(event: KeyboardEvent) {
+        // Check if the tag input is focused
+        if (this.tagInput && document.activeElement === this.tagInput) {
+            if (event.key === 'Escape') {
+                this.tagInput.blur();  // Remove focus from the input
+                event.preventDefault();
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                const newTags = this.tagInput.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+                this.updateTags(newTags);
+            }
+            return;
+        }
+    
+        // If the tag input is not focused, handle navigation as before
         switch (event.key) {
             case 'ArrowLeft':
                 this.navigate(-1);

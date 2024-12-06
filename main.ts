@@ -1,4 +1,4 @@
-import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, TFile } from 'obsidian';
+import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, TFile, App } from 'obsidian';
 import { FullscreenView } from './fullscreen';
 import { GalleryItem, GallerySettings } from './types';
 
@@ -268,13 +268,18 @@ export default class GalleryXPlugin extends Plugin {
     openFullscreen(items: GalleryItem[], startIndex: number) {
         const nonVideoItems = items.filter(i => !i.isVideo);
         if (nonVideoItems.length > 0) {
-            new FullscreenView(nonVideoItems, startIndex, (src: string) => {
-                const file = this.app.vault.getAbstractFileByPath(src.replace(/!\[\[(.*?)\]\]/, '$1'));
-                if (file instanceof TFile) {
-                    return this.app.vault.getResourcePath(file);
+            new FullscreenView(
+                this.app,
+                nonVideoItems,
+                startIndex,
+                (src: string) => {
+                    const file = this.app.vault.getAbstractFileByPath(src.replace(/!\[\[(.*?)\]\]/, '$1'));
+                    if (file instanceof TFile) {
+                        return this.app.vault.getResourcePath(file);
+                    }
+                    return src;
                 }
-                return src;
-            });
+            );
         }
     }
 }
