@@ -6,5 +6,6 @@
   "description": "A gallery plugin for Obsidian that creates elegant gallery layouts with fullscreen viewing functionality.",
   "author": "FootPrintStudio",
   "authorUrl": "https://github.com/FootPrintStudio",
-  "isDesktopOnly": false
+  "isDesktopOnly": false,
+  "fundingUrl": ""
 }
