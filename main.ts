@@ -2,6 +2,7 @@ import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, TFile, App }
 import { FullscreenView } from './fullscreen';
 import { GalleryItem, GallerySettings } from './types';
 import { GlobalTagCache } from './tagCache';
+import { GallerySearch } from './gallerySearch';
 
 export default class GalleryXPlugin extends Plugin {
     private items: GalleryItem[] = [];
@@ -15,6 +16,7 @@ export default class GalleryXPlugin extends Plugin {
     async onLayoutReady() {
         this.registerMarkdownCodeBlockProcessor('galleryx', this.processGalleryBlock.bind(this));
         this.registerMarkdownPostProcessor(this.processInlineGallery.bind(this));
+        this.registerMarkdownCodeBlockProcessor('gallery-search', this.processGallerySearch.bind(this));
     
         // Populate the tag cache for all files in the vault at startup
         await this.populateGlobalTagCache();
@@ -96,6 +98,11 @@ export default class GalleryXPlugin extends Plugin {
 
     onunload() {
         console.log('Unloading GalleryX plugin');
+    }
+
+    processGallerySearch(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+        const gallerySearch = new GallerySearch(this.app, this);
+        gallerySearch.processGallerySearch(source, el);
     }
 
     processGalleryBlock(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
