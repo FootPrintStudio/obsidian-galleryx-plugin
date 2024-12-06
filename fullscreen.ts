@@ -81,9 +81,21 @@ export class FullscreenView {
         contentEl.appendChild(img);
 
         metadataEl.innerHTML = `
-            <p>Source: ${this.currentItem.src}</p>
-            <p>Tags: ${this.currentItem.tags.join(', ')}</p>
-        `;
+        <div style="display: flex; width: 100%; max-width: 100%; background-color: rgba(0, 0, 0, 0.7); padding: 10px; border-radius: 5px;">
+            <div style="flex: 0 0 auto; margin-right: 20px;">
+                <p style="margin: 0 0 5px 0;">Source:</p>
+                <p style="margin: 0 0 10px 0; word-break: break-all;">${this.currentItem.src}</p>
+                <button class="galleryx-copy-metadata" style="background: none; border: 1px solid white; color: white; padding: 5px 10px; cursor: pointer;">Copy Source</button>
+            </div>
+            <div style="flex: 1; overflow: hidden;">
+                <p style="margin: 0 0 5px 0;">Tags:</p>
+                <p style="margin: 0; word-wrap: break-word;">${this.currentItem.tags.join(', ')}</p>
+            </div>
+        </div>
+    `;
+
+        const copyButton = metadataEl.querySelector('.galleryx-copy-metadata');
+        copyButton?.addEventListener('click', () => this.copyMetadataToClipboard());
 
         // Add zoom functionality
         let scale = 1;
@@ -91,7 +103,7 @@ export class FullscreenView {
             e.preventDefault();
             const delta = e.deltaY > 0 ? 0.9 : 1.1;
             scale *= delta;
-            scale = Math.min(Math.max(1, scale), 5); // Limit zoom between 1x and 5x
+            scale = Math.min(Math.max(0.5, scale), 5); // Limit zoom between 0.5x and 5x
             updateTransform();
         });
 
@@ -133,6 +145,24 @@ export class FullscreenView {
 
     private handleMediaError(contentEl: Element, message: string) {
         contentEl.innerHTML = `<div class="galleryx-error-message">${message}</div>`;
+    }
+
+    private copyMetadataToClipboard() {
+        const metadata = `${this.currentItem.src}`;
+
+        navigator.clipboard.writeText(metadata).then(() => {
+            // Provide visual feedback
+            const copyButton = this.container.querySelector('.galleryx-copy-metadata');
+            if (copyButton) {
+                const originalText = copyButton.textContent;
+                copyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyButton.textContent = originalText;
+                }, 2000);
+            }
+        }).catch(err => {
+            console.error('Failed to copy metadata: ', err);
+        });
     }
 
     private navigate(direction: number) {
