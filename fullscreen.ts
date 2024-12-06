@@ -8,9 +8,10 @@ export class FullscreenView {
     private resolveLocalPath: (src: string) => string;
 
     constructor(items: GalleryItem[], startIndex: number, resolveLocalPath: (src: string) => string) {
-        this.items = items;
-        this.currentIndex = startIndex;
-        this.currentItem = items[startIndex];
+        this.items = items.filter(item => !item.isVideo);
+        this.currentIndex = this.items.findIndex(item => item.src === items[startIndex].src);
+        if (this.currentIndex === -1) this.currentIndex = 0;
+        this.currentItem = this.items[this.currentIndex];
         this.resolveLocalPath = resolveLocalPath;
         this.createContainer();
     }
@@ -22,13 +23,17 @@ export class FullscreenView {
             <div class="galleryx-fullscreen-content"></div>
             <div class="galleryx-fullscreen-metadata"></div>
             <button class="galleryx-fullscreen-close">×</button>
-            <button class="galleryx-fullscreen-prev">‹</button>
-            <button class="galleryx-fullscreen-next">›</button>
+            ${this.items.length > 1 ? `
+                <button class="galleryx-fullscreen-prev">‹</button>
+                <button class="galleryx-fullscreen-next">›</button>
+            ` : ''}
         `;
 
         this.container.querySelector('.galleryx-fullscreen-close')?.addEventListener('click', () => this.close());
-        this.container.querySelector('.galleryx-fullscreen-prev')?.addEventListener('click', () => this.navigate(-1));
-        this.container.querySelector('.galleryx-fullscreen-next')?.addEventListener('click', () => this.navigate(1));
+        if (this.items.length > 1) {
+            this.container.querySelector('.galleryx-fullscreen-prev')?.addEventListener('click', () => this.navigate(-1));
+            this.container.querySelector('.galleryx-fullscreen-next')?.addEventListener('click', () => this.navigate(1));
+        }
 
         document.addEventListener('keydown', this.handleKeyDown.bind(this));
 
@@ -40,26 +45,18 @@ export class FullscreenView {
         const contentEl = this.container.querySelector('.galleryx-fullscreen-content');
         const metadataEl = this.container.querySelector('.galleryx-fullscreen-metadata');
         if (!contentEl || !metadataEl) return;
-    
+
         contentEl.innerHTML = '';
-    
-        if (this.currentItem.isVideo) {
-            const video = document.createElement('video');
-            video.src = this.currentItem.src;
-            video.controls = true;
-            video.onerror = () => this.handleMediaError(contentEl, 'Video failed to load');
-            contentEl.appendChild(video);
+
+        const img = document.createElement('img');
+        if (this.currentItem.isLocal) {
+            img.src = this.resolveLocalPath(this.currentItem.src);
         } else {
-            const img = document.createElement('img');
-            if (this.currentItem.isLocal) {
-                img.src = this.resolveLocalPath(this.currentItem.src);
-            } else {
-                img.src = this.currentItem.src;
-            }
-            img.onerror = () => this.handleMediaError(contentEl, 'Image failed to load');
-            contentEl.appendChild(img);
+            img.src = this.currentItem.src;
         }
-    
+        img.onerror = () => this.handleMediaError(contentEl, 'Image failed to load');
+        contentEl.appendChild(img);
+
         metadataEl.innerHTML = `
             <p>Source: ${this.currentItem.src}</p>
             <p>Tags: ${this.currentItem.tags.join(', ')}</p>
@@ -71,9 +68,11 @@ export class FullscreenView {
     }
 
     private navigate(direction: number) {
-        this.currentIndex = (this.currentIndex + direction + this.items.length) % this.items.length;
-        this.currentItem = this.items[this.currentIndex];
-        this.updateContent();
+        if (this.items.length > 1) {
+            this.currentIndex = (this.currentIndex + direction + this.items.length) % this.items.length;
+            this.currentItem = this.items[this.currentIndex];
+            this.updateContent();
+        }
     }
 
     private handleKeyDown(event: KeyboardEvent) {

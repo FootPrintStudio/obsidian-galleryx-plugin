@@ -191,25 +191,20 @@ export default class GalleryXPlugin extends Plugin {
     
         const contentEl = item.isVideo ? document.createElement('video') : document.createElement('img');
         
-        // Set data-src instead of src for lazy loading
         contentEl.setAttribute('data-src', item.isLocal ? this.getLocalFilePath(item.src) : item.src);
-        
-        // Add loading="lazy" attribute for native lazy loading
         contentEl.setAttribute('loading', 'lazy');
         
         if (item.isVideo) {
             (contentEl as HTMLVideoElement).controls = true;
         } else {
             (contentEl as HTMLImageElement).alt = item.src;
+            itemEl.addEventListener('click', () => this.openFullscreen(this.items, this.items.indexOf(item)));
         }
     
-        // Add a placeholder or low-quality image
         contentEl.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
     
         itemEl.appendChild(contentEl);
-        itemEl.addEventListener('click', () => this.openFullscreen(item));
     
-        // Use Intersection Observer for lazy loading
         this.observeElement(itemEl);
     
         return itemEl;
@@ -250,7 +245,11 @@ export default class GalleryXPlugin extends Plugin {
         contentEl.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
     
         wrapper.appendChild(contentEl);
-        wrapper.addEventListener('click', () => this.openFullscreen(item));
+        
+        // Only add click event for non-video items
+        if (!item.isVideo) {
+            wrapper.addEventListener('click', () => this.openFullscreen([item], 0));
+        }
     
         this.observeElement(wrapper);
     
@@ -266,15 +265,16 @@ export default class GalleryXPlugin extends Plugin {
         return fileName;
     }
 
-    openFullscreen(item: GalleryItem) {
-        const index = this.items.findIndex(i => i.src === item.src);
-        new FullscreenView(this.items, index, (src: string) => {
-            // Use Obsidian's API to resolve the local file path
-            const file = this.app.vault.getAbstractFileByPath(src.replace(/!\[\[(.*?)\]\]/, '$1'));
-            if (file instanceof TFile) {
-                return this.app.vault.getResourcePath(file);
-            }
-            return src;
-        });
+    openFullscreen(items: GalleryItem[], startIndex: number) {
+        const nonVideoItems = items.filter(i => !i.isVideo);
+        if (nonVideoItems.length > 0) {
+            new FullscreenView(nonVideoItems, startIndex, (src: string) => {
+                const file = this.app.vault.getAbstractFileByPath(src.replace(/!\[\[(.*?)\]\]/, '$1'));
+                if (file instanceof TFile) {
+                    return this.app.vault.getResourcePath(file);
+                }
+                return src;
+            });
+        }
     }
 }
