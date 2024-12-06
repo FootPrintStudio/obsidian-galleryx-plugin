@@ -1,6 +1,7 @@
 import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, TFile, App } from 'obsidian';
 import { FullscreenView } from './fullscreen';
 import { GalleryItem, GallerySettings } from './types';
+import { GlobalTagCache } from './tagCache';
 
 export default class GalleryXPlugin extends Plugin {
     private items: GalleryItem[] = [];
@@ -9,6 +10,14 @@ export default class GalleryXPlugin extends Plugin {
 
         this.registerMarkdownCodeBlockProcessor('galleryx', this.processGalleryBlock.bind(this));
         this.registerMarkdownPostProcessor(this.processInlineGallery.bind(this));
+
+        const tagCache = GlobalTagCache.getInstance();
+        const files = this.app.vault.getMarkdownFiles();
+        for (const file of files) {
+            const content = await this.app.vault.read(file);
+            const tags = this.extractTagsFromContent(content);
+            tags.forEach(tag => tagCache.addTag(tag));
+        }
     }
 
     onunload() {
@@ -22,6 +31,18 @@ export default class GalleryXPlugin extends Plugin {
     
         const galleryEl = this.createGalleryElement(items, settings);
         el.appendChild(galleryEl);
+    }
+
+    private extractTagsFromContent(content: string): string[] {
+        const tagRegex = /\{(.*?)\}/g;
+        const tags: string[] = [];
+        let match;
+        while ((match = tagRegex.exec(content)) !== null) {
+            const tagString = match[1];
+            const individualTags = tagString.split(',').map(tag => tag.trim());
+            tags.push(...individualTags);
+        }
+        return tags;
     }
     
     extractSettings(lines: string[]): { settings: GallerySettings, contentStartIndex: number } {

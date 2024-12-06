@@ -1,5 +1,6 @@
 import { GalleryItem } from './types';
 import { App, TFile } from 'obsidian';
+import { GlobalTagCache } from './tagCache';
 
 export class FullscreenView {
     private container: HTMLElement;
@@ -11,6 +12,9 @@ export class FullscreenView {
     private handleMouseUp: () => void;
     private app: App;
     private tagInput: HTMLInputElement | null = null;
+    private tagCache: GlobalTagCache;
+    private suggestionsContainer: HTMLElement | null = null;
+    private selectedSuggestionIndex: number = -1;
 
     constructor(app: App, items: GalleryItem[], startIndex: number, resolveLocalPath: (src: string) => string) {
         this.app = app;
@@ -20,6 +24,14 @@ export class FullscreenView {
         this.currentItem = this.items[this.currentIndex] || this.items[0];
         this.resolveLocalPath = resolveLocalPath;
         this.createContainer();
+        this.tagCache = GlobalTagCache.getInstance();
+        this.initializeTagCache();
+    }
+
+    private initializeTagCache() {
+        this.items.forEach(item => {
+            item.tags.forEach(tag => this.tagCache.addTag(tag));
+        });
     }
 
     private createContainer() {
@@ -105,6 +117,20 @@ export class FullscreenView {
         const updateTagsButton = metadataEl.querySelector('.galleryx-update-tags');
         const tagsInput = metadataEl.querySelector('.galleryx-tags-input') as HTMLInputElement;
         this.tagInput = tagsInput;  // Store the reference to the tag input
+
+        // Clear and hide suggestions when updating content
+        this.clearSuggestions();
+
+        if (this.suggestionsContainer) {
+            this.suggestionsContainer.remove();
+        }
+        this.suggestionsContainer = document.createElement('div');
+        this.suggestionsContainer.className = 'galleryx-tag-suggestions';
+        document.body.appendChild(this.suggestionsContainer);
+
+        tagsInput.addEventListener('input', () => this.showSuggestions());
+        tagsInput.addEventListener('keydown', (e) => this.handleTagInputKeydown(e));
+
         updateTagsButton?.addEventListener('click', () => {
             const newTags = tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag);
             this.updateTags(newTags);
@@ -178,8 +204,112 @@ export class FullscreenView {
         });
     }
 
+    private showSuggestions() {
+        if (!this.tagInput || !this.suggestionsContainer) return;
+
+        const inputValue = this.tagInput.value.toLowerCase();
+        const lastTag = inputValue.split(',').pop()?.trim() || '';
+
+        if (lastTag.length === 0) {
+            this.suggestionsContainer.style.display = 'none';
+            return;
+        }
+
+        const suggestions = this.tagCache.getAllTags()
+            .filter(tag => tag.toLowerCase().includes(lastTag))
+            .sort((a, b) => a.localeCompare(b));
+
+        this.suggestionsContainer.innerHTML = '';
+        suggestions.forEach((suggestion, index) => {
+            const suggestionEl = document.createElement('div');
+            suggestionEl.textContent = suggestion;
+            suggestionEl.className = 'galleryx-tag-suggestion';
+            suggestionEl.style.padding = '5px';
+            suggestionEl.style.cursor = 'pointer';
+            suggestionEl.addEventListener('click', () => this.selectSuggestion(suggestion));
+            suggestionEl.addEventListener('mouseover', () => this.setSelectedSuggestion(index));
+            this.suggestionsContainer?.appendChild(suggestionEl);
+        });
+
+        if (this.suggestionsContainer) {
+            // Position the suggestions container above the input
+            const inputRect = this.tagInput.getBoundingClientRect();
+            this.suggestionsContainer.style.position = 'absolute';
+            this.suggestionsContainer.style.left = `${inputRect.left}px`;
+            this.suggestionsContainer.style.bottom = `${window.innerHeight - inputRect.top}px`; // Position above the input
+            this.suggestionsContainer.style.width = `${inputRect.width}px`;
+            this.suggestionsContainer.style.maxHeight = '150px';
+            this.suggestionsContainer.style.overflowY = 'auto';
+            this.suggestionsContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            this.suggestionsContainer.style.color = 'white';
+            this.suggestionsContainer.style.zIndex = '10000';
+            this.suggestionsContainer.style.display = suggestions.length > 0 ? 'block' : 'none';
+        }
+        this.selectedSuggestionIndex = -1;
+    }
+
+    private selectSuggestion(suggestion: string) {
+        if (!this.tagInput) return;
+
+        const tags = this.tagInput.value.split(',');
+        tags[tags.length - 1] = suggestion;
+        this.tagInput.value = tags.join(', ') + ', ';
+        this.suggestionsContainer!.style.display = 'none';
+        this.tagInput.focus();
+    }
+
+    private setSelectedSuggestion(index: number) {
+        this.selectedSuggestionIndex = index;
+        const suggestions = this.suggestionsContainer!.children;
+        for (let i = 0; i < suggestions.length; i++) {
+            suggestions[i].classList.toggle('selected', i === index);
+        }
+    }
+
+    private clearSuggestions() {
+        if (this.suggestionsContainer) {
+            this.suggestionsContainer.innerHTML = '';
+            this.suggestionsContainer.style.display = 'none';
+        }
+        this.selectedSuggestionIndex = -1;
+    }
+
+    private handleTagInputKeydown(event: KeyboardEvent) {
+        if (!this.suggestionsContainer) return;
+
+        const suggestions = this.suggestionsContainer.children;
+        switch (event.key) {
+            case 'ArrowDown':
+                event.preventDefault();
+                this.setSelectedSuggestion((this.selectedSuggestionIndex + 1) % suggestions.length);
+                break;
+            case 'ArrowUp':
+                event.preventDefault();
+                this.setSelectedSuggestion((this.selectedSuggestionIndex - 1 + suggestions.length) % suggestions.length);
+                break;
+            case 'Enter':
+                if (this.selectedSuggestionIndex >= 0) {
+                    event.preventDefault();
+                    this.selectSuggestion(suggestions[this.selectedSuggestionIndex].textContent!);
+                }
+                break;
+            case 'Escape':
+                this.suggestionsContainer.style.display = 'none';
+                break;
+        }
+    }
+
     private async updateTags(newTags: string[]) {
+        const oldTags = new Set(this.currentItem.tags);
         this.currentItem.tags = newTags;
+
+        // Update tag cache
+        newTags.forEach(tag => this.tagCache.addTag(tag));
+        oldTags.forEach(tag => {
+            if (!this.items.some(item => item.tags.includes(tag))) {
+                this.tagCache.removeTag(tag);
+            }
+        });
 
         // Find the file containing the image
         const files = this.app.vault.getMarkdownFiles();
@@ -218,6 +348,7 @@ export class FullscreenView {
         if (this.items.length > 1) {
             this.currentIndex = (this.currentIndex + direction + this.items.length) % this.items.length;
             this.currentItem = this.items[this.currentIndex];
+            this.clearSuggestions();
             this.updateContent();
         }
     }
@@ -235,7 +366,7 @@ export class FullscreenView {
             }
             return;
         }
-    
+
         // If the tag input is not focused, handle navigation as before
         switch (event.key) {
             case 'ArrowLeft':
@@ -257,6 +388,11 @@ export class FullscreenView {
         }
         if (this.handleMouseUp) {
             document.removeEventListener('mouseup', this.handleMouseUp);
+        }
+        this.clearSuggestions();
+        if (this.suggestionsContainer) {
+            this.suggestionsContainer.remove();
+            this.suggestionsContainer = null;
         }
         this.container.remove();
     }

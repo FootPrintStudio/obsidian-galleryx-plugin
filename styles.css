@@ -133,3 +133,15 @@
     top: 50%;
     transform: translateY(-50%);
 }
+
+/* Suggestion box */
+
+.galleryx-tag-suggestion {
+    padding: 5px;
+    cursor: pointer;
+}
+
+.galleryx-tag-suggestion:hover,
+.galleryx-tag-suggestion.selected {
+    background-color: rgba(255, 255, 255, 0.2);
+}
