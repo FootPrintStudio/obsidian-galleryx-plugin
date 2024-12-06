@@ -1,19 +1,9 @@
 import { Plugin, MarkdownPostProcessorContext, MarkdownRenderChild, TFile } from 'obsidian';
-
-interface GalleryItem {
-    src: string;
-    isLocal: boolean;
-    isVideo: boolean;
-    tags: string[];
-}
-
-interface GallerySettings {
-    type: string;
-    flexboxHeight?: string;
-    columns?: number;
-}
+import { FullscreenView } from './fullscreen';
+import { GalleryItem, GallerySettings } from './types';
 
 export default class GalleryXPlugin extends Plugin {
+    private items: GalleryItem[] = [];
     async onload() {
         console.log('Loading GalleryX plugin');
 
@@ -152,6 +142,7 @@ export default class GalleryXPlugin extends Plugin {
     }
 
     createGalleryElement(items: GalleryItem[], settings: GallerySettings): HTMLElement {
+        this.items = items; // Store all items
         if (settings.type === 'single' && items.length === 1) {
             return this.createSingleGalleryItem(items[0]);
         }
@@ -276,7 +267,14 @@ export default class GalleryXPlugin extends Plugin {
     }
 
     openFullscreen(item: GalleryItem) {
-        // Implement fullscreen functionality here
-        console.log('Opening fullscreen for:', item);
+        const index = this.items.findIndex(i => i.src === item.src);
+        new FullscreenView(this.items, index, (src: string) => {
+            // Use Obsidian's API to resolve the local file path
+            const file = this.app.vault.getAbstractFileByPath(src.replace(/!\[\[(.*?)\]\]/, '$1'));
+            if (file instanceof TFile) {
+                return this.app.vault.getResourcePath(file);
+            }
+            return src;
+        });
     }
 }
