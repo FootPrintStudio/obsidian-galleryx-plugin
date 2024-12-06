@@ -7,17 +7,91 @@ export default class GalleryXPlugin extends Plugin {
     private items: GalleryItem[] = [];
     async onload() {
         console.log('Loading GalleryX plugin');
-
+    
+        // Wait for the layout to be ready
+        this.app.workspace.onLayoutReady(this.onLayoutReady.bind(this));
+    }
+    
+    async onLayoutReady() {
         this.registerMarkdownCodeBlockProcessor('galleryx', this.processGalleryBlock.bind(this));
         this.registerMarkdownPostProcessor(this.processInlineGallery.bind(this));
+    
+        // Populate the tag cache for all files in the vault at startup
+        await this.populateGlobalTagCache();
+    
+        // Add an event listener for file changes to keep the tag cache updated
+        this.registerEvent(
+            this.app.vault.on('modify', async (file) => {
+                if (file instanceof TFile && file.extension === 'md') {
+                    const content = await this.app.vault.read(file);
+                    if (this.containsGalleryElement(content)) {
+                        await this.updateTagCacheForFile(file, content);
+                    }
+                }
+            })
+        );
+    
+        console.log('GalleryX plugin fully loaded and tag cache populated');
+    }
 
+    async populateGlobalTagCache() {
         const tagCache = GlobalTagCache.getInstance();
+        
+        // Check if we can access the vault
+        if (!this.app.vault) {
+            console.error('Unable to access the vault');
+            return;
+        }
+    
         const files = this.app.vault.getMarkdownFiles();
+    
         for (const file of files) {
             const content = await this.app.vault.read(file);
+            
+            // Check if the file contains any gallery elements
+            if (this.containsGalleryElement(content)) {
+                await this.updateTagCacheForFile(file, content);
+            }
+        }
+    }
+    
+    private containsGalleryElement(content: string): boolean {
+        // Check for galleryx code blocks
+        if (content.includes('```galleryx')) {
+            return true;
+        }
+        
+        // Check for inline galleryx elements
+        if (content.includes('`galleryx-single:')) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    async updateTagCacheForFile(file: TFile, content?: string) {
+        const tagCache = GlobalTagCache.getInstance();
+        try {
+            if (!content) {
+                content = await this.app.vault.read(file);
+            }
             const tags = this.extractTagsFromContent(content);
             tags.forEach(tag => tagCache.addTag(tag));
+        } catch (error) {
+            console.error(`Error processing file ${file.path}:`, error);
         }
+    }
+
+    private extractTagsFromContent(content: string): string[] {
+        const tagRegex = /\{(.*?)\}/g;
+        const tags: string[] = [];
+        let match;
+        while ((match = tagRegex.exec(content)) !== null) {
+            const tagString = match[1];
+            const individualTags = tagString.split(',').map(tag => tag.trim());
+            tags.push(...individualTags);
+        }
+        return tags;
     }
 
     onunload() {
@@ -31,18 +105,6 @@ export default class GalleryXPlugin extends Plugin {
     
         const galleryEl = this.createGalleryElement(items, settings);
         el.appendChild(galleryEl);
-    }
-
-    private extractTagsFromContent(content: string): string[] {
-        const tagRegex = /\{(.*?)\}/g;
-        const tags: string[] = [];
-        let match;
-        while ((match = tagRegex.exec(content)) !== null) {
-            const tagString = match[1];
-            const individualTags = tagString.split(',').map(tag => tag.trim());
-            tags.push(...individualTags);
-        }
-        return tags;
     }
     
     extractSettings(lines: string[]): { settings: GallerySettings, contentStartIndex: number } {
