@@ -181,6 +181,10 @@ export default class GalleryXPlugin extends Plugin {
         filterInput.placeholder = 'Filter by tags...';
         filterInput.className = 'galleryx-filter-input';
     
+        const suggestionContainer = document.createElement('div');
+        suggestionContainer.className = 'galleryx-suggestion-container';
+        suggestionContainer.style.display = 'none';
+    
         const filterButton = document.createElement('button');
         filterButton.textContent = 'Filter';
         filterButton.className = 'galleryx-filter-button';
@@ -190,6 +194,7 @@ export default class GalleryXPlugin extends Plugin {
         clearButton.className = 'galleryx-clear-button';
     
         filterContainer.appendChild(filterInput);
+        filterContainer.appendChild(suggestionContainer);
         filterContainer.appendChild(filterButton);
         filterContainer.appendChild(clearButton);
     
@@ -199,16 +204,71 @@ export default class GalleryXPlugin extends Plugin {
         clearButton.addEventListener('click', () => {
             filterInput.value = '';
             this.filterGallery(items, galleryEl, '');
+            suggestionContainer.style.display = 'none';
         });
     
-        // Add event listener for Enter key press
+        filterInput.addEventListener('input', () => {
+            this.updateSuggestions(filterInput.value, suggestionContainer);
+        });
+    
         filterInput.addEventListener('keyup', (event) => {
             if (event.key === 'Enter') {
                 applyFilter();
+                suggestionContainer.style.display = 'none';
+            }
+        });
+    
+        // Add blur event listener to hide suggestions when input loses focus
+        filterInput.addEventListener('blur', (event) => {
+            // Delay hiding to allow click events on suggestions to fire
+            setTimeout(() => {
+                suggestionContainer.style.display = 'none';
+            }, 200);
+        });
+    
+        // Ensure suggestions are hidden when input is cleared
+        filterInput.addEventListener('input', (event) => {
+            if ((event.target as HTMLInputElement).value === '') {
+                suggestionContainer.style.display = 'none';
             }
         });
     
         return filterContainer;
+    }
+
+    private updateSuggestions(input: string, suggestionContainer: HTMLElement) {
+        const tagCache = GlobalTagCache.getInstance();
+        const allTags = tagCache.getAllTags();
+        const inputTags = input.toLowerCase().split(',').map(tag => tag.trim());
+        const currentTag = inputTags[inputTags.length - 1];
+    
+        if (currentTag.length === 0) {
+            suggestionContainer.style.display = 'none';
+            return;
+        }
+    
+        const matchingTags = allTags.filter(tag => 
+            tag.toLowerCase().includes(currentTag) && !inputTags.slice(0, -1).includes(tag.toLowerCase())
+        );
+    
+        suggestionContainer.innerHTML = '';
+        if (matchingTags.length > 0) {
+            matchingTags.slice(0, 5).forEach(tag => {
+                const suggestionEl = document.createElement('div');
+                suggestionEl.className = 'galleryx-suggestion';
+                suggestionEl.textContent = tag;
+                suggestionEl.addEventListener('click', () => {
+                    inputTags[inputTags.length - 1] = tag;
+                    const newInput = inputTags.join(', ');
+                    (suggestionContainer.previousElementSibling as HTMLInputElement).value = newInput;
+                    this.updateSuggestions(newInput, suggestionContainer);
+                });
+                suggestionContainer.appendChild(suggestionEl);
+            });
+            suggestionContainer.style.display = 'block';
+        } else {
+            suggestionContainer.style.display = 'none';
+        }
     }
 
     parseGalleryItems(lines: string[]): GalleryItem[] {

@@ -72,6 +72,36 @@
     background-color: var(--background-modifier-error);
 }
 
+.galleryx-filter-container {
+    position: relative;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 5px;
+}
+
+.galleryx-suggestion-container {
+    position: absolute;
+    top: 100%; /* Position it right below the filter input */
+    left: 0;
+    right: 0; /* Make it span the full width of the filter container */
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-top: none; /* Remove top border to connect with input */
+    max-height: 150px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: add a subtle shadow */
+}
+
+.galleryx-suggestion {
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.galleryx-suggestion:hover {
+    background-color: var(--background-secondary);
+}
+
 /* Fullscreen View */
 
 .galleryx-fullscreen-container {
