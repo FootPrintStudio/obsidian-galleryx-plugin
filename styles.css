@@ -180,33 +180,31 @@
 
 .galleryx-search-input-container {
     display: flex;
+    align-items: center;
     margin-bottom: 10px;
 }
 
-.galleryx-search-input {
+.galleryx-input-wrapper {
+    position: relative;
     flex-grow: 1;
-    margin-right: 5px;
+    margin-right: 10px;
+}
+
+.galleryx-search-input {
+    width: 100%;
+    padding: 5px;
+}
+
+.galleryx-suggestion {
+    padding: 5px;
+    cursor: pointer;
+}
+
+.galleryx-suggestion:hover {
+    background-color: #f0f0f0;
 }
 
 .galleryx-search-button,
 .galleryx-clear-button {
     margin-left: 5px;
-}
-
-.galleryx-suggestion-container {
-    position: absolute;
-    background-color: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    z-index: 1000;
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-.galleryx-suggestion {
-    padding: 5px 10px;
-    cursor: pointer;
-}
-
-.galleryx-suggestion:hover {
-    background-color: var(--background-secondary);
 }

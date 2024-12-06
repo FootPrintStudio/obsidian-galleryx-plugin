@@ -86,26 +86,31 @@ export class GallerySearch {
     private createSearchInput(items: GalleryItem[], containerEl: HTMLElement, limit: number): HTMLElement {
         const searchContainer = document.createElement('div');
         searchContainer.className = 'galleryx-search-input-container';
-
+    
+        const inputWrapper = document.createElement('div');
+        inputWrapper.className = 'galleryx-input-wrapper';
+    
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
         searchInput.placeholder = 'Search tags...';
         searchInput.className = 'galleryx-search-input';
-
+    
         const suggestionContainer = document.createElement('div');
         suggestionContainer.className = 'galleryx-suggestion-container';
         suggestionContainer.style.display = 'none';
-
+    
+        inputWrapper.appendChild(searchInput);
+        inputWrapper.appendChild(suggestionContainer);
+    
         const searchButton = document.createElement('button');
         searchButton.textContent = 'Search';
         searchButton.className = 'galleryx-search-button';
-
+    
         const clearButton = document.createElement('button');
         clearButton.textContent = 'Clear';
         clearButton.className = 'galleryx-clear-button';
-
-        searchContainer.appendChild(searchInput);
-        searchContainer.appendChild(suggestionContainer);
+    
+        searchContainer.appendChild(inputWrapper);
         searchContainer.appendChild(searchButton);
         searchContainer.appendChild(clearButton);
 
