@@ -142,9 +142,8 @@ export default class GalleryXPlugin extends Plugin {
     }
 
     createGalleryElement(items: GalleryItem[], settings: GallerySettings): HTMLElement {
-        this.items = items; // Store all items
         if (settings.type === 'single' && items.length === 1) {
-            return this.createSingleGalleryItem(items[0]);
+            return this.createSingleGalleryItem(items[0], items);
         }
     
         const containerEl = document.createElement('div');
@@ -159,8 +158,8 @@ export default class GalleryXPlugin extends Plugin {
             galleryEl.style.setProperty('--columns', settings.columns.toString());
         }
     
-        items.forEach(item => {
-            const itemEl = this.createGalleryItemElement(item);
+        items.forEach((item, index) => {
+            const itemEl = this.createGalleryItemElement(item, items, index);
             galleryEl.appendChild(itemEl);
         });
     
@@ -185,7 +184,7 @@ export default class GalleryXPlugin extends Plugin {
         });
     }
     
-    createGalleryItemElement(item: GalleryItem): HTMLElement {
+    createGalleryItemElement(item: GalleryItem, galleryItems: GalleryItem[], index: number): HTMLElement {
         const itemEl = document.createElement('div');
         itemEl.className = 'galleryx-item';
     
@@ -198,7 +197,7 @@ export default class GalleryXPlugin extends Plugin {
             (contentEl as HTMLVideoElement).controls = true;
         } else {
             (contentEl as HTMLImageElement).alt = item.src;
-            itemEl.addEventListener('click', () => this.openFullscreen(this.items, this.items.indexOf(item)));
+            itemEl.addEventListener('click', () => this.openFullscreen(galleryItems, index));
         }
     
         contentEl.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
@@ -228,7 +227,7 @@ export default class GalleryXPlugin extends Plugin {
         observer.observe(element.firstElementChild as HTMLElement);
     }
 
-    createSingleGalleryItem(item: GalleryItem): HTMLElement {
+    createSingleGalleryItem(item: GalleryItem, galleryItems: GalleryItem[]): HTMLElement {
         const wrapper = document.createElement('div');
         wrapper.className = 'galleryx-single-item';
     
@@ -248,7 +247,7 @@ export default class GalleryXPlugin extends Plugin {
         
         // Only add click event for non-video items
         if (!item.isVideo) {
-            wrapper.addEventListener('click', () => this.openFullscreen([item], 0));
+            wrapper.addEventListener('click', () => this.openFullscreen(galleryItems, 0));
         }
     
         this.observeElement(wrapper);

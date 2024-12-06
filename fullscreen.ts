@@ -14,10 +14,10 @@ export class FullscreenView {
 
     constructor(app: App, items: GalleryItem[], startIndex: number, resolveLocalPath: (src: string) => string) {
         this.app = app;
-        this.items = items.filter(item => !item.isVideo);
-        this.currentIndex = this.items.findIndex(item => item.src === items[startIndex].src);
+        this.items = items.filter(item => item && !item.isVideo);
+        this.currentIndex = this.items.findIndex(item => item.src === items[startIndex]?.src);
         if (this.currentIndex === -1) this.currentIndex = 0;
-        this.currentItem = this.items[this.currentIndex];
+        this.currentItem = this.items[this.currentIndex] || this.items[0];
         this.resolveLocalPath = resolveLocalPath;
         this.createContainer();
     }
